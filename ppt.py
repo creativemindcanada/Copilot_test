@@ -3,20 +3,36 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
 
 def create_standard_presentation():
-    # Create a new presentation (or use a template if you have one)
     prs = Presentation()
-    
-    # Helper: Set an orange background on a slide
+
+    # -------------------------------------------------------------------------
+    # Helper: Set an orange background by inserting a full-slide rectangle.
     def set_orange_background(slide):
-        fill = slide.background.fill
-        fill.solid()
-        fill.fore_color.rgb = RGBColor(255, 165, 0)
-    
+        # Create a full-slide rectangle shape with the desired color.
+        rect = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            left=0,
+            top=0,
+            width=prs.slide_width,
+            height=prs.slide_height
+        )
+        rect.fill.solid()
+        rect.fill.fore_color.rgb = RGBColor(255, 165, 0)
+        rect.line.fill.background()  # remove border
+
+        # "Send" the rectangle to the back.
+        # This hack removes it and reinserts it near the beginning of the XML tree.
+        spTree = slide.shapes._spTree
+        spTree.remove(rect._element)
+        spTree.insert(2, rect._element)
+
+    # -------------------------------------------------------------------------
     # Function: Add a slide with a title, bullet points, and optionally an image.
     def add_bullet_slide(title_text, bullet_points, img_path=None, img_pos=(Inches(5), Inches(1.5)), img_width=Inches(3)):
-        slide_layout = prs.slide_layouts[5]  # Using a blank layout for custom design.
+        slide_layout = prs.slide_layouts[5]  # using a blank layout
         slide = prs.slides.add_slide(slide_layout)
         set_orange_background(slide)
         
@@ -24,12 +40,12 @@ def create_standard_presentation():
         title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(4.5), Inches(1))
         title_tf = title_box.text_frame
         title_tf.text = title_text
-        for paragraph in title_tf.paragraphs:
-            paragraph.font.size = Pt(32)
-            paragraph.font.bold = True
-            paragraph.font.name = "Calibri"
-            paragraph.font.color.rgb = RGBColor(255, 255, 255)
-            paragraph.alignment = PP_ALIGN.LEFT
+        for p in title_tf.paragraphs:
+            p.font.size = Pt(32)
+            p.font.bold = True
+            p.font.name = "Calibri"
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.alignment = PP_ALIGN.LEFT
         
         # Bullet points textbox
         bullet_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.5), Inches(4))
@@ -47,7 +63,7 @@ def create_standard_presentation():
                 p.font.name = "Calibri"
                 p.font.color.rgb = RGBColor(255, 255, 255)
         
-        # Optionally add an image (for logos or illustrations).
+        # Optionally add an image (logo or illustration)
         if img_path:
             try:
                 slide.shapes.add_picture(img_path, img_pos[0], img_pos[1], width=img_width)
@@ -55,14 +71,15 @@ def create_standard_presentation():
                 print(f"Error adding image '{img_path}': {e}")
         
         return slide
-    
-    # Function: Add a two‑column slide (for “Before” vs. “After” content).
+
+    # -------------------------------------------------------------------------
+    # Function: Add a two-column slide (for “Before” vs. “After” content).
     def add_two_column_slide(title_text, left_title, left_bullets, right_title, right_bullets):
         slide_layout = prs.slide_layouts[5]
         slide = prs.slides.add_slide(slide_layout)
         set_orange_background(slide)
         
-        # Slide title (centered at the top)
+        # Slide title (centered)
         title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.8))
         title_tf = title_box.text_frame
         title_tf.text = title_text
@@ -108,7 +125,8 @@ def create_standard_presentation():
             p.font.color.rgb = RGBColor(255, 255, 255)
         
         return slide
-    
+
+    # -------------------------------------------------------------------------
     # Function: Add a long bullet list slide (for GTM Strategy details).
     def add_long_bullet_slide(title_text, bullet_points):
         slide_layout = prs.slide_layouts[5]
@@ -143,37 +161,33 @@ def create_standard_presentation():
                 p.font.color.rgb = RGBColor(255, 255, 255)
         return slide
 
-    # ----------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Slide 1: Why Valuezen? (Problem Statement & Opportunity)
-    # ----------------------------------------------------------------------
     slide1_title = "Why Valuezen? (Problem Statement & Opportunity)"
     slide1_bullets = [
         "Decision-making in logistics is slow due to lack of real-time, quantifiable value insights.",
         "Mid-market and SMBs struggle with cost justification, integration complexity, and slow adoption.",
         "Existing platforms offer data but lack personalized ROI-driven intelligence."
     ]
-    # Including a logo image (adjust the path to e.g., "images/logo.png")
+    # Add logo image (ensure "images/logo.png" exists in your repository)
     add_bullet_slide(slide1_title, slide1_bullets,
-                     img_path="images/logo.png", 
+                     img_path="images/logo.png",
                      img_pos=(Inches(7), Inches(0.3)), img_width=Inches(2))
-    
-    # ----------------------------------------------------------------------
+
+    # -------------------------------------------------------------------------
     # Slide 2: What is Valuezen? (Solution Overview)
-    # ----------------------------------------------------------------------
     slide2_title = "What is Valuezen? (Solution Overview)"
     slide2_bullets = [
         "AI-powered value delivery platform for logistics & transportation.",
         "Plug-and-play API-first approach for rapid deployment.",
         "Live value calculators to showcase impact in cost, time, and efficiency."
     ]
-    # Including a solution image (adjust the path to e.g., "images/solution_image.png")
     add_bullet_slide(slide2_title, slide2_bullets,
                      img_path="images/solution_image.png",
                      img_pos=(Inches(5), Inches(1.5)), img_width=Inches(3))
-    
-    # ----------------------------------------------------------------------
+
+    # -------------------------------------------------------------------------
     # Slide 3: Key Benefits (Before vs. After Valuezen)
-    # ----------------------------------------------------------------------
     slide3_title = "Key Benefits (Before vs. After Valuezen)"
     left_title = "Before:"
     left_bullets = [
@@ -188,10 +202,9 @@ def create_standard_presentation():
         "Free-tier trials → SMB adoption & viral expansion."
     ]
     add_two_column_slide(slide3_title, left_title, left_bullets, right_title, right_bullets)
-    
-    # ----------------------------------------------------------------------
+
+    # -------------------------------------------------------------------------
     # Slide 4: GTM Strategy & Expansion Plan
-    # ----------------------------------------------------------------------
     slide4_title = "GTM Strategy & Expansion Plan"
     slide4_bullets = [
         "Target Mid-Market with Rapid Deployment & API Integration",
@@ -214,15 +227,16 @@ def create_standard_presentation():
         "   • Position Valuezen as a decision intelligence leader."
     ]
     add_long_bullet_slide(slide4_title, slide4_bullets)
-    
-    # Save the presentation in a BytesIO buffer so it can be deployed or downloaded.
+
+    # -------------------------------------------------------------------------
+    # Save presentation to a BytesIO buffer for download or file saving.
     ppt_buffer = io.BytesIO()
     prs.save(ppt_buffer)
     ppt_buffer.seek(0)
     return ppt_buffer
 
 if __name__ == "__main__":
-    ppt_buffer = create_standard_presentation()
+    ppt_data = create_standard_presentation()
     with open("Valuezen_Standard_Presentation.pptx", "wb") as f:
-        f.write(ppt_buffer.getbuffer())
-    print("Standard presentation generated as 'Valuezen_Standard_Presentation.pptx'.")
+        f.write(ppt_data.getbuffer())
+    print("Presentation generated as 'Valuezen_Standard_Presentation.pptx'.")

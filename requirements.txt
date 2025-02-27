@@ -6,4 +6,4 @@ scikit-learn
 nltk
 requests
 python-pptx
-create_standard_presentation
+

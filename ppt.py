@@ -1,158 +1,228 @@
-import streamlit as st
-from pptx import Presentation
-from pptx.util import Inches
-from pptx.dml.color import RGBColor
 import io
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
+from pptx.dml.color import RGBColor
 
-# Function to create the PPT presentation
-def create_presentation():
+def create_standard_presentation():
+    # Create a new presentation (or use a template if you have one)
     prs = Presentation()
-
-    # Function to set an orange background for a slide
-    def set_slide_background(slide, rgb_color=RGBColor(255, 165, 0)):
+    
+    # Helper: Set an orange background on a slide
+    def set_orange_background(slide):
         fill = slide.background.fill
         fill.solid()
-        fill.fore_color.rgb = rgb_color
+        fill.fore_color.rgb = RGBColor(255, 165, 0)
+    
+    # Function: Add a slide with a title, bullet points, and optionally an image.
+    def add_bullet_slide(title_text, bullet_points, img_path=None, img_pos=(Inches(5), Inches(1.5)), img_width=Inches(3)):
+        slide_layout = prs.slide_layouts[5]  # Using a blank layout for custom design.
+        slide = prs.slides.add_slide(slide_layout)
+        set_orange_background(slide)
+        
+        # Title textbox
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(4.5), Inches(1))
+        title_tf = title_box.text_frame
+        title_tf.text = title_text
+        for paragraph in title_tf.paragraphs:
+            paragraph.font.size = Pt(32)
+            paragraph.font.bold = True
+            paragraph.font.name = "Calibri"
+            paragraph.font.color.rgb = RGBColor(255, 255, 255)
+            paragraph.alignment = PP_ALIGN.LEFT
+        
+        # Bullet points textbox
+        bullet_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.5), Inches(4))
+        bullet_tf = bullet_box.text_frame
+        if bullet_points:
+            bullet_tf.text = bullet_points[0]
+            bullet_tf.paragraphs[0].font.size = Pt(20)
+            bullet_tf.paragraphs[0].font.name = "Calibri"
+            bullet_tf.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            for bp in bullet_points[1:]:
+                p = bullet_tf.add_paragraph()
+                p.text = bp
+                p.level = 1
+                p.font.size = Pt(20)
+                p.font.name = "Calibri"
+                p.font.color.rgb = RGBColor(255, 255, 255)
+        
+        # Optionally add an image (for logos or illustrations).
+        if img_path:
+            try:
+                slide.shapes.add_picture(img_path, img_pos[0], img_pos[1], width=img_width)
+            except Exception as e:
+                print(f"Error adding image '{img_path}': {e}")
+        
+        return slide
+    
+    # Function: Add a two‑column slide (for “Before” vs. “After” content).
+    def add_two_column_slide(title_text, left_title, left_bullets, right_title, right_bullets):
+        slide_layout = prs.slide_layouts[5]
+        slide = prs.slides.add_slide(slide_layout)
+        set_orange_background(slide)
+        
+        # Slide title (centered at the top)
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.8))
+        title_tf = title_box.text_frame
+        title_tf.text = title_text
+        for p in title_tf.paragraphs:
+            p.font.size = Pt(28)
+            p.font.bold = True
+            p.font.name = "Calibri"
+            p.alignment = PP_ALIGN.CENTER
+            p.font.color.rgb = RGBColor(255, 255, 255)
+        
+        # Left column (Before)
+        left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.5), Inches(5))
+        left_tf = left_box.text_frame
+        left_tf.text = left_title
+        for p in left_tf.paragraphs:
+            p.font.size = Pt(24)
+            p.font.bold = True
+            p.font.name = "Calibri"
+            p.font.color.rgb = RGBColor(255, 255, 255)
+        for bullet in left_bullets:
+            p = left_tf.add_paragraph()
+            p.text = bullet
+            p.level = 1
+            p.font.size = Pt(20)
+            p.font.name = "Calibri"
+            p.font.color.rgb = RGBColor(255, 255, 255)
+        
+        # Right column (After)
+        right_box = slide.shapes.add_textbox(Inches(5.5), Inches(1.5), Inches(4.5), Inches(5))
+        right_tf = right_box.text_frame
+        right_tf.text = right_title
+        for p in right_tf.paragraphs:
+            p.font.size = Pt(24)
+            p.font.bold = True
+            p.font.name = "Calibri"
+            p.font.color.rgb = RGBColor(255, 255, 255)
+        for bullet in right_bullets:
+            p = right_tf.add_paragraph()
+            p.text = bullet
+            p.level = 1
+            p.font.size = Pt(20)
+            p.font.name = "Calibri"
+            p.font.color.rgb = RGBColor(255, 255, 255)
+        
+        return slide
+    
+    # Function: Add a long bullet list slide (for GTM Strategy details).
+    def add_long_bullet_slide(title_text, bullet_points):
+        slide_layout = prs.slide_layouts[5]
+        slide = prs.slides.add_slide(slide_layout)
+        set_orange_background(slide)
+        
+        # Title textbox
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.8))
+        title_tf = title_box.text_frame
+        title_tf.text = title_text
+        for p in title_tf.paragraphs:
+            p.font.size = Pt(28)
+            p.font.bold = True
+            p.font.name = "Calibri"
+            p.alignment = PP_ALIGN.CENTER
+            p.font.color.rgb = RGBColor(255, 255, 255)
+        
+        # Bullet points textbox
+        bullet_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.3), Inches(9), Inches(5))
+        bullet_tf = bullet_box.text_frame
+        if bullet_points:
+            bullet_tf.text = bullet_points[0]
+            bullet_tf.paragraphs[0].font.size = Pt(20)
+            bullet_tf.paragraphs[0].font.name = "Calibri"
+            bullet_tf.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            for bp in bullet_points[1:]:
+                p = bullet_tf.add_paragraph()
+                p.text = bp
+                p.level = 1
+                p.font.size = Pt(20)
+                p.font.name = "Calibri"
+                p.font.color.rgb = RGBColor(255, 255, 255)
+        return slide
 
-    # ----------------------------
+    # ----------------------------------------------------------------------
     # Slide 1: Why Valuezen? (Problem Statement & Opportunity)
-    # ----------------------------
-    slide1 = prs.slides.add_slide(prs.slide_layouts[5])
-    set_slide_background(slide1)
-
-    txBox = slide1.shapes.add_textbox(Inches(0.5), Inches(0.7), Inches(9), Inches(1.5))
-    tf = txBox.text_frame
-    tf.text = "Why Valuezen? (Problem Statement & Opportunity)"
-    for bullet in [
+    # ----------------------------------------------------------------------
+    slide1_title = "Why Valuezen? (Problem Statement & Opportunity)"
+    slide1_bullets = [
         "Decision-making in logistics is slow due to lack of real-time, quantifiable value insights.",
         "Mid-market and SMBs struggle with cost justification, integration complexity, and slow adoption.",
         "Existing platforms offer data but lack personalized ROI-driven intelligence."
-    ]:
-        p = tf.add_paragraph()
-        p.text = bullet
-        p.level = 1
-
-    # Add a logo image (if available)
-    try:
-        slide1.shapes.add_picture("logo.png", Inches(8), Inches(0.2), width=Inches(1.5))
-    except Exception as e:
-        st.warning("Logo image not found. Please ensure 'logo.png' is in your directory.")
-
-    # ----------------------------
+    ]
+    # Including a logo image (adjust the path to e.g., "images/logo.png")
+    add_bullet_slide(slide1_title, slide1_bullets,
+                     img_path="images/logo.png", 
+                     img_pos=(Inches(7), Inches(0.3)), img_width=Inches(2))
+    
+    # ----------------------------------------------------------------------
     # Slide 2: What is Valuezen? (Solution Overview)
-    # ----------------------------
-    slide2 = prs.slides.add_slide(prs.slide_layouts[5])
-    set_slide_background(slide2)
-
-    txBox = slide2.shapes.add_textbox(Inches(0.5), Inches(0.7), Inches(9), Inches(1.5))
-    tf = txBox.text_frame
-    tf.text = "What is Valuezen? (Solution Overview)"
-    for bullet in [
+    # ----------------------------------------------------------------------
+    slide2_title = "What is Valuezen? (Solution Overview)"
+    slide2_bullets = [
         "AI-powered value delivery platform for logistics & transportation.",
         "Plug-and-play API-first approach for rapid deployment.",
         "Live value calculators to showcase impact in cost, time, and efficiency."
-    ]:
-        p = tf.add_paragraph()
-        p.text = bullet
-        p.level = 1
-
-    try:
-        slide2.shapes.add_picture("solution_image.png", Inches(0.5), Inches(3.5), width=Inches(3))
-    except Exception as e:
-        st.warning("Solution image not found. Please ensure 'solution_image.png' is in your directory.")
-
-    # ----------------------------
+    ]
+    # Including a solution image (adjust the path to e.g., "images/solution_image.png")
+    add_bullet_slide(slide2_title, slide2_bullets,
+                     img_path="images/solution_image.png",
+                     img_pos=(Inches(5), Inches(1.5)), img_width=Inches(3))
+    
+    # ----------------------------------------------------------------------
     # Slide 3: Key Benefits (Before vs. After Valuezen)
-    # ----------------------------
-    slide3 = prs.slides.add_slide(prs.slide_layouts[5])
-    set_slide_background(slide3)
-
-    txBox = slide3.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(1.2))
-    tf = txBox.text_frame
-    tf.text = "Key Benefits (Before vs. After Valuezen)"
-
-    # Left Column: Before
-    left_box = slide3.shapes.add_textbox(Inches(0.5), Inches(2), Inches(4), Inches(3))
-    tf_left = left_box.text_frame
-    tf_left.text = "Before:"
-    for bullet in [
+    # ----------------------------------------------------------------------
+    slide3_title = "Key Benefits (Before vs. After Valuezen)"
+    left_title = "Before:"
+    left_bullets = [
         "Fragmented data, unclear ROI.",
         "Slow customer onboarding & adoption.",
         "Lack of AI-driven decision intelligence."
-    ]:
-        p = tf_left.add_paragraph()
-        p.text = bullet
-        p.level = 1
-
-    # Right Column: After
-    right_box = slide3.shapes.add_textbox(Inches(5), Inches(2), Inches(4), Inches(3))
-    tf_right = right_box.text_frame
-    tf_right.text = "After:"
-    for bullet in [
+    ]
+    right_title = "After:"
+    right_bullets = [
         "API-first selling → faster deployment, proven cost savings.",
         "AI/ML-driven value insights → predictive decision-making.",
         "Free-tier trials → SMB adoption & viral expansion."
-    ]:
-        p = tf_right.add_paragraph()
-        p.text = bullet
-        p.level = 1
-
-    # ----------------------------
+    ]
+    add_two_column_slide(slide3_title, left_title, left_bullets, right_title, right_bullets)
+    
+    # ----------------------------------------------------------------------
     # Slide 4: GTM Strategy & Expansion Plan
-    # ----------------------------
-    slide4 = prs.slides.add_slide(prs.slide_layouts[5])
-    set_slide_background(slide4)
-
-    txBox = slide4.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(5))
-    tf = txBox.text_frame
-    tf.text = "GTM Strategy & Expansion Plan"
-    gtm_entries = [
+    # ----------------------------------------------------------------------
+    slide4_title = "GTM Strategy & Expansion Plan"
+    slide4_bullets = [
         "Target Mid-Market with Rapid Deployment & API Integration",
-        "  • Plug-and-play solution with API-first selling approach.",
-        "  • Faster response times → reduced downtime & automation-led savings.",
-        "  • Build case studies to show mid-market efficiency gains.",
+        "   • Plug-and-play solution with API-first selling approach.",
+        "   • Faster response times → reduced downtime & automation-led savings.",
+        "   • Build case studies to show mid-market efficiency gains.",
         "",
         "Drive SMB Adoption with Free Tier & Simplified Onboarding",
-        "  • Simplified UX → highlight ease of use & time savings in marketing.",
-        "  • Free-tier tracking service for small carriers & brokers.",
-        "  • Leverage referrals & integrate with popular TMS platforms.",
+        "   • Simplified UX → highlight ease of use & time savings in marketing.",
+        "   • Free-tier tracking service for small carriers & brokers.",
+        "   • Leverage referrals & integrate with popular TMS platforms.",
         "",
         "Expand into Latin America & APAC Through Mid-Market Penetration",
-        "  • Localized content, multilingual support, and regional partnerships.",
-        "  • Flexible pricing to match emerging market needs.",
+        "   • Localized content, multilingual support, and regional partnerships.",
+        "   • Flexible pricing to match emerging market needs.",
         "",
         "Strengthen Competitive Differentiation with AI & Predictive Insights",
-        "  • AI/ML-powered predictive ETA & automation as differentiators.",
-        "  • Target C-level executives with data-driven supply chain intelligence.",
-        "  • Position Valuezen as a decision intelligence leader."
+        "   • AI/ML-powered predictive ETA & automation as differentiators.",
+        "   • Target C-level executives with data-driven supply chain intelligence.",
+        "   • Position Valuezen as a decision intelligence leader."
     ]
-    for entry in gtm_entries:
-        p = tf.add_paragraph()
-        p.text = entry
-        if entry.strip().startswith("•"):
-            p.level = 1
-        else:
-            p.level = 0
-
-    # Save the presentation to a bytes buffer
+    add_long_bullet_slide(slide4_title, slide4_bullets)
+    
+    # Save the presentation in a BytesIO buffer so it can be deployed or downloaded.
     ppt_buffer = io.BytesIO()
     prs.save(ppt_buffer)
     ppt_buffer.seek(0)
     return ppt_buffer
 
-# ----------------------------
-# Streamlit App Layout
-# ----------------------------
-st.title("Valuezen PPT Generator")
-st.write("Click the button below to generate and download your Valuezen presentation.")
-
-ppt_data = create_presentation()
-
-st.download_button(
-    label="Download PPT",
-    data=ppt_data,
-    file_name="Valuezen_Presentation.pptx",
-    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-)
-
-st.write("If you have any issues or see a blank screen, please check the asset paths and ensure all files are included in the repository.")
+if __name__ == "__main__":
+    ppt_buffer = create_standard_presentation()
+    with open("Valuezen_Standard_Presentation.pptx", "wb") as f:
+        f.write(ppt_buffer.getbuffer())
+    print("Standard presentation generated as 'Valuezen_Standard_Presentation.pptx'.")

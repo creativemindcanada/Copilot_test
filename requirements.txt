@@ -6,4 +6,5 @@ scikit-learn
 nltk
 requests
 python-pptx
-
+openai 
+python-pptx

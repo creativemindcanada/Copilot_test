@@ -1,217 +1,151 @@
-import io
-from pptx import Presentation
+import streamlit as st
+import base64
+import openai
+import pptx
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
-from pptx.dml.color import RGBColor
+import os
 
-def create_standard_presentation():
-    # Load the custom template with the orange background already set up.
-    prs = Presentation("custom_template.pptx")
+from dotenv import load_dotenv
+load_dotenv()
+
+openai.api_key = os.getenv('OPENAI_API_KEY')  # Replace with your actual API key
+
+# Define custom formatting options
+TITLE_FONT_SIZE = Pt(30)
+SLIDE_FONT_SIZE = Pt(16)
+
+
+def generate_slide_titles(topic):
+    prompt = f"Generate 5 slide titles for the topic '{topic}'."
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=200,
+    )
+    return response['choices'][0]['text'].split("\n")
+
+def generate_slide_content(slide_title):
+    prompt = f"Generate content for the slide: '{slide_title}'."
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=500,  # Adjust as needed based on the desired content length
+    )
+    return response['choices'][0]['text']
+
+
+def create_presentation(topic, slide_titles, slide_contents):
+    prs = pptx.Presentation()
+    slide_layout = prs.slide_layouts[1]
+
+    title_slide = prs.slides.add_slide(prs.slide_layouts[0])
+    title_slide.shapes.title.text = topic
+
+    for slide_title, slide_content in zip(slide_titles, slide_contents):
+        slide = prs.slides.add_slide(slide_layout)
+        slide.shapes.title.text = slide_title
+        slide.shapes.placeholders[1].text = slide_content
+
+        # Customize font size for titles and content
+        slide.shapes.title.text_frame.paragraphs[0].font.size = TITLE_FONT_SIZE
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                text_frame = shape.text_frame
+                for paragraph in text_frame.paragraphs:
+                    paragraph.font.size = SLIDE_FONT_SIZE
+
+    prs.save(f"generated_ppt/{topic}_presentation.pptx")
     
-    # Function: Add a slide with a title, bullet points and optionally an image.
-    def add_bullet_slide(title_text, bullet_points, img_path=None, img_pos=(Inches(5), Inches(1.5)), img_width=Inches(3)):
-        slide_layout = prs.slide_layouts[5]  # Use a blank custom layout from the template.
-        slide = prs.slides.add_slide(slide_layout)
-        
-        # Title textbox
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(4.5), Inches(1))
-        title_tf = title_box.text_frame
-        title_tf.text = title_text
-        for p in title_tf.paragraphs:
-            p.font.size = Pt(32)
-            p.font.bold = True
-            p.font.name = "Calibri"
-            p.font.color.rgb = RGBColor(255, 255, 255)
-            p.alignment = PP_ALIGN.LEFT
-        
-        # Bullet points textbox
-        bullet_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.5), Inches(4))
-        bullet_tf = bullet_box.text_frame
-        
-        if bullet_points:
-            bullet_tf.text = bullet_points[0]
-            bullet_tf.paragraphs[0].font.size = Pt(20)
-            bullet_tf.paragraphs[0].font.name = "Calibri"
-            bullet_tf.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-            for bp in bullet_points[1:]:
-                p = bullet_tf.add_paragraph()
-                p.text = bp
-                p.level = 1
-                p.font.size = Pt(20)
-                p.font.name = "Calibri"
-                p.font.color.rgb = RGBColor(255, 255, 255)
-        
-        # Optionally add an image (logo or illustration)
-        if img_path:
-            try:
-                slide.shapes.add_picture(img_path, img_pos[0], img_pos[1], width=img_width)
-            except Exception as e:
-                print(f"Error adding image '{img_path}': {e}")
-        
-        return slide
 
-    # Function: Add a two-column slide (for “Before” vs. “After” content).
-    def add_two_column_slide(title_text, left_title, left_bullets, right_title, right_bullets):
-        slide_layout = prs.slide_layouts[5]
-        slide = prs.slides.add_slide(slide_layout)
-        
-        # Slide title (centered)
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.8))
-        title_tf = title_box.text_frame
-        title_tf.text = title_text
-        for p in title_tf.paragraphs:
-            p.font.size = Pt(28)
-            p.font.bold = True
-            p.font.name = "Calibri"
-            p.alignment = PP_ALIGN.CENTER
-            p.font.color.rgb = RGBColor(255, 255, 255)
-        
-        # Left column (Before)
-        left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.5), Inches(5))
-        left_tf = left_box.text_frame
-        left_tf.text = left_title
-        for p in left_tf.paragraphs:
-            p.font.size = Pt(24)
-            p.font.bold = True
-            p.font.name = "Calibri"
-            p.font.color.rgb = RGBColor(255, 255, 255)
-        for bullet in left_bullets:
-            p = left_tf.add_paragraph()
-            p.text = bullet
-            p.level = 1
-            p.font.size = Pt(20)
-            p.font.name = "Calibri"
-            p.font.color.rgb = RGBColor(255, 255, 255)
-        
-        # Right column (After)
-        right_box = slide.shapes.add_textbox(Inches(5.5), Inches(1.5), Inches(4.5), Inches(5))
-        right_tf = right_box.text_frame
-        right_tf.text = right_title
-        for p in right_tf.paragraphs:
-            p.font.size = Pt(24)
-            p.font.bold = True
-            p.font.name = "Calibri"
-            p.font.color.rgb = RGBColor(255, 255, 255)
-        for bullet in right_bullets:
-            p = right_tf.add_paragraph()
-            p.text = bullet
-            p.level = 1
-            p.font.size = Pt(20)
-            p.font.name = "Calibri"
-            p.font.color.rgb = RGBColor(255, 255, 255)
-        
-        return slide
+def main():
+    st.title("PowerPoint Presentation Generator with GPT-3.5-turbo")
 
-    # Function: Add a long bullet list slide (for GTM Strategy details).
-    def add_long_bullet_slide(title_text, bullet_points):
-        slide_layout = prs.slide_layouts[5]
-        slide = prs.slides.add_slide(slide_layout)
-        
-        # Title textbox
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.8))
-        title_tf = title_box.text_frame
-        title_tf.text = title_text
-        for p in title_tf.paragraphs:
-            p.font.size = Pt(28)
-            p.font.bold = True
-            p.font.name = "Calibri"
-            p.alignment = PP_ALIGN.CENTER
-            p.font.color.rgb = RGBColor(255, 255, 255)
-        
-        # Bullet points textbox
-        bullet_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.3), Inches(9), Inches(5))
-        bullet_tf = bullet_box.text_frame
-        
-        if bullet_points:
-            bullet_tf.text = bullet_points[0]
-            bullet_tf.paragraphs[0].font.size = Pt(20)
-            bullet_tf.paragraphs[0].font.name = "Calibri"
-            bullet_tf.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-            for bp in bullet_points[1:]:
-                p = bullet_tf.add_paragraph()
-                p.text = bp
-                p.level = 1
-                p.font.size = Pt(20)
-                p.font.name = "Calibri"
-                p.font.color.rgb = RGBColor(255, 255, 255)
-        
-        return slide
+    topic = st.text_input("Enter the topic for your presentation:")
+    generate_button = st.button("Generate Presentation")
 
-    # ----------------------------
-    # Slide 1: Why Valuezen? (Problem Statement & Opportunity)
-    slide1_title = "Why Valuezen? (Problem Statement & Opportunity)"
-    slide1_bullets = [
-        "Decision-making in logistics is slow due to lack of real-time, quantifiable value insights.",
-        "Mid-market and SMBs struggle with cost justification, integration complexity, and slow adoption.",
-        "Existing platforms offer data but lack personalized ROI-driven intelligence."
-    ]
-    # Add the first slide with the logo (assumes "images/logo.png" is in place)
-    add_bullet_slide(slide1_title, slide1_bullets,
-                     img_path="images/logo.png",
-                     img_pos=(Inches(7), Inches(0.3)), img_width=Inches(2))
+    if generate_button and topic:
+        st.info("Generating presentation... Please wait.")
+        slide_titles = generate_slide_titles(topic)
+        filtered_slide_titles= [item for item in slide_titles if item.strip() != '']
+        print("Slide Title: ", filtered_slide_titles)
+        slide_contents = [generate_slide_content(title) for title in filtered_slide_titles]
+        print("Slide Contents: ", slide_contents)
+        create_presentation(topic, filtered_slide_titles, slide_contents)
+        print("Presentation generated successfully!")
 
-    # ----------------------------
-    # Slide 2: What is Valuezen? (Solution Overview)
-    slide2_title = "What is Valuezen? (Solution Overview)"
-    slide2_bullets = [
-        "AI-powered value delivery platform for logistics & transportation.",
-        "Plug-and-play API-first approach for rapid deployment.",
-        "Live value calculators to showcase impact in cost, time, and efficiency."
-    ]
-    add_bullet_slide(slide2_title, slide2_bullets,
-                     img_path="images/solution_image.png",
-                     img_pos=(Inches(5), Inches(1.5)), img_width=Inches(3))
+        st.success("Presentation generated successfully!")
+        st.markdown(get_ppt_download_link(topic), unsafe_allow_html=True)
 
-    # ----------------------------
-    # Slide 3: Key Benefits (Before vs. After Valuezen)
-    slide3_title = "Key Benefits (Before vs. After Valuezen)"
-    left_title = "Before:"
-    left_bullets = [
-        "Fragmented data, unclear ROI.",
-        "Slow customer onboarding & adoption.",
-        "Lack of AI-driven decision intelligence."
-    ]
-    right_title = "After:"
-    right_bullets = [
-        "API-first selling → faster deployment, proven cost savings.",
-        "AI/ML-driven value insights → predictive decision-making.",
-        "Free-tier trials → SMB adoption & viral expansion."
-    ]
-    add_two_column_slide(slide3_title, left_title, left_bullets, right_title, right_bullets)
+def get_ppt_download_link(topic):
+    ppt_filename = f"generated_ppt/{topic}_presentation.pptx"
 
-    # ----------------------------
-    # Slide 4: GTM Strategy & Expansion Plan
-    slide4_title = "GTM Strategy & Expansion Plan"
-    slide4_bullets = [
-        "Target Mid-Market with Rapid Deployment & API Integration",
-        "   • Plug-and-play solution with API-first selling approach.",
-        "   • Faster response times → reduced downtime & automation-led savings.",
-        "   • Build case studies to show mid-market efficiency gains.",
-        "",
-        "Drive SMB Adoption with Free Tier & Simplified Onboarding",
-        "   • Simplified UX → highlight ease of use & time savings in marketing.",
-        "   • Free-tier tracking service for small carriers & brokers.",
-        "   • Leverage referrals & integrate with popular TMS platforms.",
-        "",
-        "Expand into Latin America & APAC Through Mid-Market Penetration",
-        "   • Localized content, multilingual support, and regional partnerships.",
-        "   • Flexible pricing to match emerging market needs.",
-        "",
-        "Strengthen Competitive Differentiation with AI & Predictive Insights",
-        "   • AI/ML-powered predictive ETA & automation as differentiators.",
-        "   • Target C-level executives with data-driven supply chain intelligence.",
-        "   • Position Valuezen as a decision intelligence leader."
-    ]
-    add_long_bullet_slide(slide4_title, slide4_bullets)
+    with open(ppt_filename, "rb") as file:
+        ppt_contents = file.read()
 
-    # Save the presentation to a BytesIO buffer.
-    ppt_buffer = io.BytesIO()
-    prs.save(ppt_buffer)
-    ppt_buffer.seek(0)
-    return ppt_buffer
+    b64_ppt = base64.b64encode(ppt_contents).decode()
+    return f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_ppt}" download="{ppt_filename}">Download the PowerPoint Presentation</a>'
+
 
 if __name__ == "__main__":
-    ppt_buffer = create_standard_presentation()
-    with open("Valuezen_Standard_Presentation.pptx", "wb") as f:
-        f.write(ppt_buffer.getbuffer())
-    print("Presentation generated as 'Valuezen_Standard_Presentation.pptx'.")
+    main()
+    import openai
+import pptx
+from pptx.util import Inches
+import os
+import time
+
+from dotenv import load_dotenv
+load_dotenv()
+
+openai.api_key = os.getenv('OPENAI_API_KEY')  # Replace with your actual API key
+
+def generate_slide_titles(topic):
+    prompt = f"Generate 10 slide titles for the topic '{topic}'."
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=200,
+    )
+    return response['choices'][0]['text'].split("\n")
+
+def generate_slide_content(slide_title):
+    prompt = f"Generate content for the slide: '{slide_title}'."
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=500,  # Adjust as needed based on the desired content length
+    )
+    return response['choices'][0]['text']
+
+
+def create_presentation(topic, slide_titles, slide_contents):
+    prs = pptx.Presentation()
+    slide_layout = prs.slide_layouts[1]
+
+    title_slide = prs.slides.add_slide(prs.slide_layouts[0])
+    title_slide.shapes.title.text = topic
+
+    for slide_title, slide_content in zip(slide_titles, slide_contents):
+        slide = prs.slides.add_slide(slide_layout)
+        slide.shapes.title.text = slide_title
+        slide.shapes.placeholders[1].text = slide_content
+
+    prs.save(f"{topic}_presentation.pptx")
+
+def main():
+    start = time.time()
+    topic = "Explainable AI"  # Replace with your desired topic
+
+    slide_titles = generate_slide_titles(topic)
+    filtered_slide_titles= [item for item in slide_titles if item.strip() != '']
+    print("Slide Title: ", filtered_slide_titles)
+    slide_contents = [generate_slide_content(title) for title in filtered_slide_titles]
+    print("Slide Contents: ", slide_contents)
+    create_presentation(topic, filtered_slide_titles, slide_contents)
+    end = time.time()
+
+    print("Total Duration: ", round(end - start, 2), " secs")
+    print("Presentation generated successfully!")
+    
+if __name__ == "__main__":
+    main()
